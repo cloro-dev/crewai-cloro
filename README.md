@@ -7,6 +7,7 @@ structured data.
 | Tool | cloro endpoint | The agent gets | Credits per call |
 |---|---|---|--:|
 | `CloroGoogleSearchTool` | `POST /v1/monitor/google` | Google organic results: title, URL and snippet. With `include_ai_overview=True`, the Google AI Overview and its sources first. | 5, or 7 with the AI Overview |
+| `CloroBingSearchTool` | `POST /v1/monitor/bing` | Bing organic results: title, URL and snippet. With `include_ai_overview=True`, the Bing AI Overview and its sources first. | 5, or 7 with the AI Overview |
 | `CloroAIAnswerTool(engine="google_ai_mode")` | `POST /v1/monitor/aimode` | The Google AI Mode answer as Markdown, with its sources | 6 |
 | `CloroAIAnswerTool(engine="bing_ai_mode")` | `POST /v1/monitor/bing/aimode` | The Bing AI Mode (Copilot Search in Bing) answer, with its sources | 6 |
 | `CloroAIAnswerTool(engine="chatgpt")` | `POST /v1/monitor/chatgpt` | The ChatGPT answer that users see, with its sources | 7 |
@@ -58,22 +59,24 @@ print(CloroGoogleSearchTool().run(query="retrieval-augmented generation", countr
 
 ### Parameters
 
-Both tools take:
+All tools take:
 
 - `api_key`: the cloro API key. Defaults to the `CLORO_API_KEY` environment variable.
 - `country`: ISO 3166-1 alpha-2 country code for the search location (default `US`). The agent can also pass
   `country` per call.
 - `timeout`: request timeout in seconds (default 180). An AI answer can take 15 to 60 seconds.
 
-`CloroGoogleSearchTool` also takes `max_results` (default 10) and `include_ai_overview` (default `False`).
-Results with an empty link or a Google redirect link are skipped.
+`CloroGoogleSearchTool` and `CloroBingSearchTool` also take `max_results` (default 10) and `include_ai_overview`
+(default `False`). Results with an empty link or a Google redirect link are skipped.
 
 `CloroAIAnswerTool` also takes `engine`: `google_ai_mode` (default), `bing_ai_mode`, `chatgpt` or `gemini`.
 
 ## Limits
 
-- Bing AI Mode accepts a prompt of up to 3,500 characters after URL encoding. Non-Latin scripts allow fewer
-  characters. The tool refuses a longer prompt before it sends the request.
+- Bing Search and Bing AI Mode accept a query of up to 3,500 characters after URL encoding. Non-Latin scripts allow
+  fewer characters. The tools refuse a longer query before they send the request.
+- Bing Search returns one page of results. The country sets the Bing market. Bing Search and Bing AI Mode accept all
+  countries except CN, KR and RU.
 - Your plan sets how many requests can run at the same time. A request sent while all slots are busy gets a `429`
   (`CONCURRENCY_LIMIT_EXCEEDED`).
 - An API error raises `CloroError` with the HTTP status, the cloro error code and the message.

@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "crewai-cloro"
-version = "0.1.0"
-description = "CrewAI tools for cloro: live Google search results with the AI Overview, and Google AI Mode, Bing AI Mode, ChatGPT and Gemini answers with sources."
+version = "0.2.0"
+description = "CrewAI tools for cloro: live Google and Bing search results with the AI Overview, and Google AI Mode, Bing AI Mode, ChatGPT and Gemini answers with sources."
 readme = "README.md"
 requires-python = ">=3.10,<3.14"
 license = "MIT"

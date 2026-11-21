@@ -1,7 +1,7 @@
-"""CrewAI tools for cloro: live Google results and AI search engine answers."""
+"""CrewAI tools for cloro: live Google and Bing results and AI search engine answers."""
 
 import os
-from typing import Any, Literal
+from typing import Any, ClassVar, Literal
 from urllib.parse import quote
 
 import httpx
@@ -14,7 +14,7 @@ API_KEY_ENV = EnvVar(
     name="CLORO_API_KEY", description="API key for cloro (https://dashboard.cloro.dev).", required=True
 )
 
-# Bing AI Mode refuses a prompt longer than this after URL encoding.
+# Bing Search and Bing AI Mode refuse a query longer than this after URL encoding.
 BING_PROMPT_LIMIT = 3500
 
 Engine = Literal["google_ai_mode", "bing_ai_mode", "chatgpt", "gemini"]
@@ -119,6 +119,8 @@ class CloroGoogleSearchTool(_CloroTool):
         "Use it for current facts, sources and what ranks on Google for a query."
     )
     args_schema: type[BaseModel] = CloroGoogleSearchInput
+    path: ClassVar[str] = "/v1/monitor/google"
+    label: ClassVar[str] = "Google"
     max_results: int = Field(default=10, description="The maximum number of organic results to return.")
     include_ai_overview: bool = Field(
         default=False, description="Also return the Google AI Overview and its sources. Costs 2 more credits."
@@ -128,12 +130,12 @@ class CloroGoogleSearchTool(_CloroTool):
         payload: dict[str, Any] = {"query": query, "country": (country or self.country).upper()}
         if self.include_ai_overview:
             payload["include"] = {"aioverview": True}
-        result = self._post("/v1/monitor/google", payload)
+        result = self._post(self.path, payload)
 
         parts: list[str] = []
         overview = result.get("aioverview")
         if self.include_ai_overview and isinstance(overview, dict) and overview.get("text"):
-            text = f"Google AI Overview:\n{overview['text']}"
+            text = f"{self.label} AI Overview:\n{overview['text']}"
             sources = _sources(overview.get("sources"))
             if sources:
                 text += "\nSources:\n" + _format_sources(sources)
@@ -146,7 +148,30 @@ class CloroGoogleSearchTool(_CloroTool):
         ][: self.max_results]
         for index, item in enumerate(organic, start=1):
             parts.append(f"{index}. {item.get('title') or ''}\n{item['link']}\n{item.get('snippet') or ''}".strip())
-        return "\n\n".join(parts) if parts else f"No Google results for: {query}"
+        return "\n\n".join(parts) if parts else f"No {self.label} results for: {query}"
+
+
+class CloroBingSearchTool(CloroGoogleSearchTool):
+    """Live Bing organic results, and optionally the Bing AI Overview, through cloro."""
+
+    name: str = "cloro_bing_search"
+    description: str = (
+        "Search Bing live and return the organic results of the first results page: title, URL and snippet. "
+        "Use it for current facts, sources and what ranks on Bing for a query."
+    )
+    path: ClassVar[str] = "/v1/monitor/bing"
+    label: ClassVar[str] = "Bing"
+    include_ai_overview: bool = Field(
+        default=False, description="Also return the Bing AI Overview and its sources. Costs 2 more credits."
+    )
+
+    def _run(self, query: str, country: str | None = None) -> str:
+        if _encoded_length(query) > BING_PROMPT_LIMIT:
+            raise ValueError(
+                "The query is too long for Bing Search: at most 3,500 characters after URL encoding. "
+                "Non-Latin scripts allow fewer characters."
+            )
+        return super()._run(query, country)
 
 
 class CloroAIAnswerInput(BaseModel):

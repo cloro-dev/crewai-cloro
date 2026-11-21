@@ -4,7 +4,7 @@ import httpx
 import pytest
 from crewai.tools import BaseTool
 
-from crewai_cloro import CloroAIAnswerTool, CloroError, CloroGoogleSearchTool
+from crewai_cloro import CloroAIAnswerTool, CloroBingSearchTool, CloroError, CloroGoogleSearchTool
 
 
 def _response(status: int, body: dict) -> httpx.Response:
@@ -88,6 +88,41 @@ def test_google_search_with_ai_overview(post):
 def test_google_search_no_results(post):
     post.return_value = _response(200, {"success": True, "result": {"organicResults": []}})
     assert CloroGoogleSearchTool().run(query="nothing") == "No Google results for: nothing"
+
+
+@patch("crewai_cloro.tools.httpx.post")
+def test_bing_search(post):
+    post.return_value = _response(200, GOOGLE)
+    tool = CloroBingSearchTool(max_results=5)
+    out = tool.run(query="serp api", country="gb")
+
+    assert tool.name == "cloro_bing_search"
+    assert isinstance(tool, BaseTool)
+    assert post.call_args.args[0] == "https://api.cloro.dev/v1/monitor/bing"
+    assert post.call_args.kwargs["json"] == {"query": "serp api", "country": "GB"}
+    assert out == "1. First\nhttps://example.com/a\nA.\n\n2. Second\nhttps://example.org/b\nB."
+
+
+@patch("crewai_cloro.tools.httpx.post")
+def test_bing_search_with_ai_overview(post):
+    post.return_value = _response(200, GOOGLE)
+    out = CloroBingSearchTool(include_ai_overview=True, max_results=1).run(query="q")
+
+    assert post.call_args.kwargs["json"] == {"query": "q", "country": "US", "include": {"aioverview": True}}
+    assert out.startswith("Bing AI Overview:\nAn overview.\nSources:\n- Src: https://example.net\n\n1. First")
+
+
+@patch("crewai_cloro.tools.httpx.post")
+def test_bing_search_no_results(post):
+    post.return_value = _response(200, {"success": True, "result": {"organicResults": []}})
+    assert CloroBingSearchTool().run(query="nothing") == "No Bing results for: nothing"
+
+
+@patch("crewai_cloro.tools.httpx.post")
+def test_bing_search_query_too_long(post):
+    with pytest.raises(ValueError, match="too long for Bing Search"):
+        CloroBingSearchTool()._run(query="中" * 600)
+    post.assert_not_called()
 
 
 @pytest.mark.parametrize(
