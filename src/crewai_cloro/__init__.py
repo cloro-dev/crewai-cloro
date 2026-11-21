@@ -1,3 +1,3 @@
-from crewai_cloro.tools import CloroAIAnswerTool, CloroError, CloroGoogleSearchTool
+from crewai_cloro.tools import CloroAIAnswerTool, CloroBingSearchTool, CloroError, CloroGoogleSearchTool
 
-__all__ = ["CloroAIAnswerTool", "CloroError", "CloroGoogleSearchTool"]
+__all__ = ["CloroAIAnswerTool", "CloroBingSearchTool", "CloroError", "CloroGoogleSearchTool"]
