@@ -67,7 +67,8 @@ All tools take:
 - `timeout`: request timeout in seconds (default 180). An AI answer can take 15 to 60 seconds.
 
 `CloroGoogleSearchTool` and `CloroBingSearchTool` also take `max_results` (default 10) and `include_ai_overview`
-(default `False`). Results with an empty link or a Google redirect link are skipped.
+(default `False`). Results with an empty link or a Google redirect link are skipped. The two tools do not return
+the ads.
 
 `CloroAIAnswerTool` also takes `engine`: `google_ai_mode` (default), `bing_ai_mode`, `chatgpt` or `gemini`.
 
