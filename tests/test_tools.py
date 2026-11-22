@@ -125,6 +125,57 @@ def test_bing_search_query_too_long(post):
     post.assert_not_called()
 
 
+ADS = [
+    {
+        "position": 1,
+        "blockPosition": "top",
+        "type": "RESULT",
+        "title": "Wok Sale",
+        "url": "https://shop.example/woks",
+        "page": 1,
+        "description": "Carbon steel woks.",
+    },
+    {
+        "position": 1,
+        "blockPosition": "rhs",
+        "type": "SHOPPING_CARD",
+        "title": "14 in Wok",
+        "url": "https://shop.example/wok-14",
+        "page": 1,
+        "price": {"value": 29, "currency": "$", "raw": "$29.00"},
+        "store": "Shop",
+    },
+]
+WITH_ADS = {"success": True, "result": {**GOOGLE["result"], "ads": [*ADS, {}]}}
+
+
+@pytest.mark.parametrize(("tool", "label"), [(CloroGoogleSearchTool, "Google"), (CloroBingSearchTool, "Bing")])
+@patch("crewai_cloro.tools.httpx.post")
+def test_search_with_ads(post, tool, label):
+    post.return_value = _response(200, WITH_ADS)
+    out = tool(include_ads=True, max_results=1).run(query="wok")
+
+    assert post.call_args.kwargs["json"] == {"query": "wok", "country": "US"}
+    assert out == (
+        "1. First\nhttps://example.com/a\nA.\n\n"
+        f"{label} ad (RESULT top 1): Wok Sale\nhttps://shop.example/woks\nCarbon steel woks.\n\n"
+        f"{label} ad (SHOPPING_CARD rhs 1): 14 in Wok\nhttps://shop.example/wok-14\n$29.00\nShop\n\n"
+        f"{label} ad ():"
+    )
+
+
+@patch("crewai_cloro.tools.httpx.post")
+def test_search_ads_off_by_default(post):
+    post.return_value = _response(200, WITH_ADS)
+    assert "shop.example" not in CloroBingSearchTool().run(query="wok")
+
+
+@patch("crewai_cloro.tools.httpx.post")
+def test_search_include_ads_without_ads(post):
+    post.return_value = _response(200, GOOGLE)
+    assert " ad (" not in CloroBingSearchTool(include_ads=True).run(query="wok")
+
+
 @pytest.mark.parametrize(
     ("engine", "path", "label"),
     [

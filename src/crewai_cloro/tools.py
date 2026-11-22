@@ -58,6 +58,20 @@ def _format_sources(sources: list[tuple[str, str]]) -> str:
     return "\n".join(f"- {title}: {url}" if title else f"- {url}" for title, url in sources)
 
 
+def _format_ad(label: str, ad: dict[str, Any]) -> str:
+    # Every field of an ad can be absent.
+    place = " ".join(str(v) for v in (ad.get("type"), ad.get("blockPosition"), ad.get("position")) if v)
+    price = ad.get("price")
+    lines = [
+        f"{label} ad ({place}): {ad.get('title') or ''}".strip(),
+        ad.get("url") if _is_direct_link(ad.get("url")) else None,
+        ad.get("description"),
+        price.get("raw") if isinstance(price, dict) else None,
+        ad.get("store"),
+    ]
+    return "\n".join(line for line in lines if line)
+
+
 class _CloroTool(BaseTool):
     api_key: str | None = Field(default=None, description="cloro API key. Defaults to CLORO_API_KEY.")
     country: str = Field(default="US", description="ISO 3166-1 alpha-2 country code for the search location.")
@@ -125,6 +139,9 @@ class CloroGoogleSearchTool(_CloroTool):
     include_ai_overview: bool = Field(
         default=False, description="Also return the Google AI Overview and its sources. Costs 2 more credits."
     )
+    include_ads: bool = Field(
+        default=False, description="Also return the ads on the page, after the organic results. No extra credits."
+    )
 
     def _run(self, query: str, country: str | None = None) -> str:
         payload: dict[str, Any] = {"query": query, "country": (country or self.country).upper()}
@@ -148,6 +165,8 @@ class CloroGoogleSearchTool(_CloroTool):
         ][: self.max_results]
         for index, item in enumerate(organic, start=1):
             parts.append(f"{index}. {item.get('title') or ''}\n{item['link']}\n{item.get('snippet') or ''}".strip())
+        if self.include_ads:
+            parts.extend(_format_ad(self.label, ad) for ad in result.get("ads") or [] if isinstance(ad, dict))
         return "\n\n".join(parts) if parts else f"No {self.label} results for: {query}"
 
 
